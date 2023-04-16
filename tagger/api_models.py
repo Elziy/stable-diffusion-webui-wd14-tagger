@@ -18,11 +18,28 @@ class TaggerInterrogateRequest(sd_models.InterrogateRequest):
         le=1
     )
 
+    unload_model_after_running: bool = Field(
+        default=False,
+        title='Unload Model After Running',
+        description='Whether to unload the model after running the interrogation.'
+    )
+
+
+# class TaggerInterrogateResponse(BaseModel):
+#     caption: Dict[str, float] = Field(
+#         title='Caption',
+#         description='The generated caption for the image.'
+#     )
 
 class TaggerInterrogateResponse(BaseModel):
-    caption: Dict[str, float] = Field(
-        title='Caption',
-        description='The generated caption for the image.'
+    ratings: Dict[str, float] = Field(
+        title='Ratings',
+        description='The original ratings for the image.'
+    )
+
+    tags: Dict[str, float] = Field(
+        title='Tags',
+        description='The processed tags for the image.'
     )
 
 

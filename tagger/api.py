@@ -67,18 +67,17 @@ class Api:
 
         image = decode_base64_to_image(req.image)
         interrogator = utils.interrogators[req.model]
+        unload_model_after_running = req.unload_model_after_running
 
         with self.queue_lock:
             ratings, tags = interrogator.interrogate(image)
-
+            if unload_model_after_running:
+                interrogator.unload()
+        processed_tags = interrogator.postprocess_tags(tags, req.threshold)
         return models.TaggerInterrogateResponse(
-            caption={
-                **ratings,
-                **interrogator.postprocess_tags(
-                    tags,
-                    req.threshold
-                )
-            })
+            ratings=ratings,
+            tags=processed_tags
+        )
 
     def endpoint_interrogators(self):
         return models.InterrogatorsResponse(
