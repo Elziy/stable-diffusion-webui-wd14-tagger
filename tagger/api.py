@@ -65,6 +65,9 @@ class Api:
         if req.model not in utils.interrogators.keys():
             raise HTTPException(404, 'Model not found')
 
+        if req.unload_model_after_running is None:
+            req.unload_model_after_running = False
+
         image = decode_base64_to_image(req.image)
         interrogator = utils.interrogators[req.model]
         unload_model_after_running = req.unload_model_after_running
