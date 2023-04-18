@@ -1,5 +1,6 @@
 import os
 import gc
+import json
 import pandas as pd
 import numpy as np
 
@@ -232,10 +233,50 @@ class WaifuDiffusionInterrogator(Interrogator):
             **self.kwargs, filename=self.model_path, cache_dir=Path(Path.cwd(), 'models', 'interrogators')))
         tags_path = Path(hf_hub_download(
             **self.kwargs, filename=self.tags_path, cache_dir=Path(Path.cwd(), 'models', 'interrogators')))
+
+        downlow_model = {
+            'name': self.name,
+            'model_path': str(model_path),
+            'tags_path': str(tags_path)
+        }
+
+        if os.path.exists(Path(Path.cwd(), 'models', 'interrogators', 'model.json')):
+            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'r') as f:
+                try:
+                    data = json.load(f)
+                    data.append(downlow_model)
+                except Exception as e:
+                    print(e)
+                    data = [downlow_model]
+            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'w') as f:
+                json.dump(data, f)
+        else:
+            if not os.path.exists(Path(Path.cwd(), 'models', 'interrogators')):
+                os.makedirs(Path(Path.cwd(), 'models', 'interrogators'))
+            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'w') as f:
+                data = [downlow_model]
+                json.dump(data, f)
+        return model_path, tags_path
+
+    def get_model_path(self) -> Tuple[os.PathLike, os.PathLike]:
+        try:
+            models = pd.read_json((Path(Path.cwd(), 'models', 'interrogators', 'model.json'))).to_dict(orient='records')
+            model_path = ''
+            tags_path = ''
+            for i in models:
+                if i['name'] == self.name:
+                    model_path = i['model_path']
+                    tags_path = i['tags_path']
+                    break
+            if model_path == '' or tags_path == '':
+                model_path, tags_path = self.download()
+        except Exception as e:
+            print(e)
+            model_path, tags_path = self.download()
         return model_path, tags_path
 
     def load(self) -> None:
-        model_path, tags_path = self.download()
+        model_path, tags_path = self.get_model_path()
 
         # only one of these packages should be installed at a time in any one environment
         # https://onnxruntime.ai/docs/get-started/with-python.html#install-onnx-runtime
