@@ -18,7 +18,7 @@ from . import dbimutils
 
 # select a device to process
 use_cpu = ('all' in shared.cmd_opts.use_cpu) or (
-    'interrogate' in shared.cmd_opts.use_cpu)
+        'interrogate' in shared.cmd_opts.use_cpu)
 
 if use_cpu:
     tf_device_name = '/cpu:0'
@@ -35,16 +35,16 @@ else:
 class Interrogator:
     @staticmethod
     def postprocess_tags(
-        tags: Dict[str, float],
+            tags: Dict[str, float],
 
-        threshold=0.35,
-        additional_tags: List[str] = [],
-        exclude_tags: List[str] = [],
-        sort_by_alphabetical_order=False,
-        add_confident_as_weight=False,
-        replace_underscore=False,
-        replace_underscore_excludes: List[str] = [],
-        escape_tag=False
+            threshold=0.35,
+            additional_tags: List[str] = [],
+            exclude_tags: List[str] = [],
+            sort_by_alphabetical_order=False,
+            add_confident_as_weight=False,
+            replace_underscore=False,
+            replace_underscore_excludes: List[str] = [],
+            escape_tag=False
     ) -> Dict[str, float]:
         for t in additional_tags:
             tags[t] = 1.0
@@ -62,8 +62,8 @@ class Interrogator:
 
             # filter tags
             if (
-                c >= threshold
-                and t not in exclude_tags
+                    c >= threshold
+                    and t not in exclude_tags
             )
         }
 
@@ -105,8 +105,8 @@ class Interrogator:
         return unloaded
 
     def interrogate(
-        self,
-        image: Image
+            self,
+            image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
         Dict[str, float]  # tag confidents
@@ -176,8 +176,8 @@ class DeepDanbooruInterrogator(Interrogator):
         return False
 
     def interrogate(
-        self,
-        image: Image
+            self,
+            image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
         Dict[str, float]  # tag confidents
@@ -214,11 +214,11 @@ class DeepDanbooruInterrogator(Interrogator):
 
 class WaifuDiffusionInterrogator(Interrogator):
     def __init__(
-        self,
-        name: str,
-        model_path='model.onnx',
-        tags_path='selected_tags.csv',
-        **kwargs
+            self,
+            name: str,
+            model_path='model.onnx',
+            tags_path='selected_tags.csv',
+            **kwargs
     ) -> None:
         super().__init__(name)
         self.model_path = model_path
@@ -229,13 +229,14 @@ class WaifuDiffusionInterrogator(Interrogator):
         print(f"Loading {self.name} model file from {self.kwargs['repo_id']}")
 
         model_path = Path(hf_hub_download(
-            **self.kwargs, filename=self.model_path))
+            **self.kwargs, filename=self.model_path, cache_dir=Path(Path.cwd().parent, 'models')))
         tags_path = Path(hf_hub_download(
-            **self.kwargs, filename=self.tags_path))
+            **self.kwargs, filename=self.tags_path, cache_dir=Path(Path.cwd().parent, 'models')))
         return model_path, tags_path
 
     def load(self) -> None:
         model_path, tags_path = self.download()
+        print(model_path, tags_path)
 
         # only one of these packages should be installed at a time in any one environment
         # https://onnxruntime.ai/docs/get-started/with-python.html#install-onnx-runtime
@@ -264,8 +265,8 @@ class WaifuDiffusionInterrogator(Interrogator):
         self.tags = pd.read_csv(tags_path)
 
     def interrogate(
-        self,
-        image: Image
+            self,
+            image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
         Dict[str, float]  # tag confidents
