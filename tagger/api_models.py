@@ -13,7 +13,7 @@ class TaggerInterrogateRequest(sd_models.InterrogateRequest):
     threshold: float = Field(
         default=0.35,
         title='Threshold',
-        description='',
+        description='The threshold for the tags.',
         ge=0,
         le=1
     )
@@ -22,6 +22,18 @@ class TaggerInterrogateRequest(sd_models.InterrogateRequest):
         default=False,
         title='Unload Model After Running',
         description='Whether to unload the model after running the interrogation.'
+    )
+
+    replace_underscore: bool = Field(
+        default=False,
+        title='Replace Underscore',
+        description='Whether to replace underscore with space in the tags.'
+    )
+
+    replace_underscore_excludes: List[str] = Field(
+        default=[],
+        title='Replace Underscore Excludes',
+        description='The tags to exclude from replacing underscore with space.'
     )
 
 

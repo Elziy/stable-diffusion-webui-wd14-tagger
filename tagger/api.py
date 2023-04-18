@@ -76,7 +76,12 @@ class Api:
             ratings, tags = interrogator.interrogate(image)
             if unload_model_after_running:
                 interrogator.unload()
-        processed_tags = interrogator.postprocess_tags(tags, req.threshold)
+        processed_tags = interrogator.postprocess_tags(
+            tags = tags,
+            threshold = req.threshold,
+            replace_underscore = req.replace_underscore,
+            replace_underscore_excludes = req.replace_underscore_excludes
+        )
         return models.TaggerInterrogateResponse(
             ratings=ratings,
             tags=processed_tags
