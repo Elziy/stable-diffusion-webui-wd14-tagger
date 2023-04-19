@@ -150,6 +150,7 @@ class DeepDanbooruInterrogator(Interrogator):
                 project_path=self.project_path,
                 compile_model=False
             )
+            self.model.predict()
 
             print(f'Loaded {self.name} model from {str(self.project_path)}')
 
@@ -230,9 +231,9 @@ class WaifuDiffusionInterrogator(Interrogator):
         print(f"Loading {self.name} model file from {self.kwargs['repo_id']}")
 
         model_path = Path(hf_hub_download(
-            **self.kwargs, filename=self.model_path, cache_dir=Path(Path.cwd(), 'models', 'interrogators')))
+            **self.kwargs, filename=self.model_path, cache_dir=Path(shared.models_path, 'interrogators')))
         tags_path = Path(hf_hub_download(
-            **self.kwargs, filename=self.tags_path, cache_dir=Path(Path.cwd(), 'models', 'interrogators')))
+            **self.kwargs, filename=self.tags_path, cache_dir=Path(shared.models_path, 'interrogators')))
 
         downlow_model = {
             'name': self.name,
@@ -240,27 +241,27 @@ class WaifuDiffusionInterrogator(Interrogator):
             'tags_path': str(tags_path)
         }
 
-        if os.path.exists(Path(Path.cwd(), 'models', 'interrogators', 'model.json')):
-            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'r') as f:
+        if os.path.exists(Path(shared.models_path, 'interrogators', 'model.json')):
+            with open(Path(shared.models_path, 'interrogators', 'model.json'), 'r') as f:
                 try:
                     data = json.load(f)
                     data.append(downlow_model)
                 except Exception as e:
                     print(e)
                     data = [downlow_model]
-            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'w') as f:
+            with open(Path(shared.models_path, 'interrogators', 'model.json'), 'w') as f:
                 json.dump(data, f)
         else:
-            if not os.path.exists(Path(Path.cwd(), 'models', 'interrogators')):
-                os.makedirs(Path(Path.cwd(), 'models', 'interrogators'))
-            with open(Path(Path.cwd(), 'models', 'interrogators', 'model.json'), 'w') as f:
+            if not os.path.exists(Path(shared.models_path, 'interrogators')):
+                os.makedirs(Path(shared.models_path, 'interrogators'))
+            with open(Path(shared.models_path, 'interrogators', 'model.json'), 'w') as f:
                 data = [downlow_model]
                 json.dump(data, f)
         return model_path, tags_path
 
     def get_model_path(self) -> Tuple[os.PathLike, os.PathLike]:
         try:
-            models = pd.read_json((Path(Path.cwd(), 'models', 'interrogators', 'model.json'))).to_dict(orient='records')
+            models = pd.read_json((Path(shared.models_path, 'interrogators', 'model.json'))).to_dict(orient='records')
             model_path = ''
             tags_path = ''
             for i in models:
