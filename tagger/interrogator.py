@@ -110,7 +110,8 @@ class Interrogator:
             image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
-        Dict[str, float]  # tag confidents
+        Dict[str, float],  # general_tag confidents
+        Dict[str, float],  # character_tag confidents
     ]:
         raise NotImplementedError()
 
@@ -127,9 +128,14 @@ class DeepDanbooruInterrogator(Interrogator):
         # https://github.com/AUTOMATIC1111/stable-diffusion-webui/commit/c81d440d876dfd2ab3560410f37442ef56fc663
         from launch import is_installed, run_pip
         if not is_installed('deepdanbooru'):
+            # package = os.environ.get(
+            #     'DEEPDANBOORU_PACKAGE',
+            #     'git+https://github.com/KichangKim/DeepDanbooru.git@d91a2963bf87c6a770d74894667e9ffa9f6de7ff'
+            # )
+
             package = os.environ.get(
                 'DEEPDANBOORU_PACKAGE',
-                'git+https://github.com/KichangKim/DeepDanbooru.git@d91a2963bf87c6a770d74894667e9ffa9f6de7ff'
+                'git+https://github.com/Elziy/DeepDanbooru.git@43f77ae4935eb76f26d55c878b6588636b186506'
             )
 
             run_pip(
@@ -145,18 +151,32 @@ class DeepDanbooruInterrogator(Interrogator):
 
         with tf.device(tf_device_name):
             import deepdanbooru.project as ddp
+            from deepdanbooru.project.project import load_categories_from_project
 
             self.model = ddp.load_model_from_project(
                 project_path=self.project_path,
                 compile_model=False
             )
-            self.model.predict()
+            # self.model.predict()
 
             print(f'Loaded {self.name} model from {str(self.project_path)}')
 
             self.tags = ddp.load_tags_from_project(
                 project_path=self.project_path
             )
+
+            self.general_start_index, self.character_start_index, self.system_start_index = -1, -1, -1
+            try:
+                categories = load_categories_from_project(project_path=self.project_path)
+                for category in categories:
+                    if category['name'] == 'Character':
+                        self.character_start_index = category['start_index']
+                    if category['name'] == 'System':
+                        self.system_start_index = category['start_index']
+                    if category['name'] == 'General':
+                        self.general_start_index = category['start_index']
+            except Exception as e:
+                print(e)
 
     def unload(self) -> bool:
         # unloaded = super().unload()
@@ -182,7 +202,8 @@ class DeepDanbooruInterrogator(Interrogator):
             image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
-        Dict[str, float]  # tag confidents
+        Dict[str, float],  # general_tag confidents
+        Dict[str, float],  # character_tag confidents
     ]:
         # init model
         if not hasattr(self, 'model') or self.model is None:
@@ -205,13 +226,39 @@ class DeepDanbooruInterrogator(Interrogator):
         result = self.model.predict(image)
 
         confidents = result[0].tolist()
+        # ratings = {}
+        # tags = {}
+        #
+        # for i, tag in enumerate(self.tags):
+        #     tags[tag] = confidents[i]
+
         ratings = {}
-        tags = {}
+        general_tags = {}
+        character_tags = {}
+        if self.general_start_index == 0 & self.character_start_index != -1:
+            for i in range(self.character_start_index):
+                tag = self.tags[i]
+                general_tags[tag] = confidents[i]
+            if self.system_start_index != -1:
+                for i in range(self.character_start_index, self.system_start_index):
+                    tag = self.tags[i]
+                    character_tags[tag] = confidents[i]
+                for j in range(self.system_start_index, len(self.tags)):
+                    tag = self.tags[j].split(':')[1]
+                    ratings[tag] = confidents[j]
+        else:
+            if self.system_start_index != -1:
+                for i in range(self.system_start_index):
+                    tag = self.tags[i]
+                    general_tags[tag] = confidents[i]
+                for j in range(self.system_start_index, len(self.tags)):
+                    tag = self.tags[j].split(':')[1]
+                    ratings[tag] = confidents[j]
+            else:
+                for i, tag in enumerate(self.tags):
+                    general_tags[tag] = confidents[i]
 
-        for i, tag in enumerate(self.tags):
-            tags[tag] = confidents[i]
-
-        return ratings, tags
+        return ratings, general_tags, character_tags
 
 
 class WaifuDiffusionInterrogator(Interrogator):
@@ -310,7 +357,8 @@ class WaifuDiffusionInterrogator(Interrogator):
             image: Image
     ) -> Tuple[
         Dict[str, float],  # rating confidents
-        Dict[str, float]  # tag confidents
+        Dict[str, float],  # general_tag confidents
+        Dict[str, float],  # character_tag confidents
     ]:
         # init model
         if not hasattr(self, 'model') or self.model is None:
@@ -343,13 +391,31 @@ class WaifuDiffusionInterrogator(Interrogator):
         label_name = self.model.get_outputs()[0].name
         confidents = self.model.run([label_name], {input_name: image})[0]
 
-        tags = self.tags[:][['name']]
-        tags['confidents'] = confidents[0]
+        # tags = self.tags[:][['name']]
+        tags_categories = self.tags[:][['name', 'category']]
+        # tags['confidents'] = confidents[0]
+        tags_categories['confidents'] = confidents[0]
+
+        grouped = tags_categories.groupby('category').apply(lambda x: dict(zip(x['name'], x['confidents'])))
+        try:
+            ratings = grouped[9]
+            ratings['general'] = ratings['general'] + ratings.get('sensitive', 0)
+            ratings.pop('sensitive', None)
+        except KeyError:
+            ratings = {}
+        try:
+            general_tags = grouped[0]
+        except KeyError:
+            general_tags = {}
+        try:
+            character_tags = grouped[4]
+        except KeyError:
+            character_tags = {}
 
         # first 4 items are for rating (general, sensitive, questionable, explicit)
-        ratings = dict(tags[:4].values)
+        # ratings = dict(tags[:4].values)
 
         # rest are regular tags
-        tags = dict(tags[4:].values)
+        # tags = dict(tags[4:].values)
 
-        return ratings, tags
+        return ratings, general_tags, character_tags

@@ -73,18 +73,32 @@ class Api:
         unload_model_after_running = req.unload_model_after_running
 
         with self.queue_lock:
-            ratings, tags = interrogator.interrogate(image)
+            ratings, general_tag, character_tag = interrogator.interrogate(image)
             if unload_model_after_running:
                 interrogator.unload()
-        processed_tags = interrogator.postprocess_tags(
-            tags = tags,
-            threshold = req.threshold,
-            replace_underscore = req.replace_underscore,
-            replace_underscore_excludes = req.replace_underscore_excludes
+
+        processed_general_tags = interrogator.postprocess_tags(
+            tags=general_tag,
+            threshold=req.threshold,
+            replace_underscore=req.replace_underscore,
+            replace_underscore_excludes=req.replace_underscore_excludes
         )
+
+        processed_character_tags = interrogator.postprocess_tags(
+            tags=character_tag,
+            threshold=req.threshold,
+            replace_underscore=req.replace_underscore,
+            replace_underscore_excludes=req.replace_underscore_excludes
+        )
+
+        processed_tags = processed_general_tags.copy()
+        processed_tags.update(processed_character_tags)
+
         return models.TaggerInterrogateResponse(
             ratings=ratings,
-            tags=processed_tags
+            tags=processed_tags,
+            general_tags=processed_general_tags,
+            character_tags=processed_character_tags
         )
 
     def endpoint_interrogators(self):

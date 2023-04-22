@@ -66,11 +66,20 @@ def on_interrogate(
 
     # single process
     if image is not None:
-        ratings, tags = interrogator.interrogate(image)
-        processed_tags = Interrogator.postprocess_tags(
-            tags,
+        ratings, general_tags,character_tags = interrogator.interrogate(image)
+
+        processed_general_tags = Interrogator.postprocess_tags(
+            general_tags,
             *postprocess_opts
         )
+
+        processed_character_tags = Interrogator.postprocess_tags(
+            character_tags,
+            *postprocess_opts
+        )
+
+        processed_tags = processed_general_tags.copy()
+        processed_tags.update(processed_character_tags)
 
         if unload_model_after_running:
             interrogator.unload()
@@ -78,7 +87,8 @@ def on_interrogate(
         return [
             ', '.join(processed_tags),
             ratings,
-            tags,
+            processed_character_tags,
+            processed_general_tags,
             ''
         ]
 
@@ -160,15 +170,16 @@ def on_interrogate(
                     print(f'skipping {path}')
                     continue
 
-            ratings, tags = interrogator.interrogate(image)
+            ratings, general_tags, character_tags = interrogator.interrogate(image)
+            general_tags.update(character_tags)
             processed_tags = Interrogator.postprocess_tags(
-                tags,
+                general_tags,
                 *postprocess_opts
             )
 
             # TODO: switch for less print
             print(
-                f'found {len(processed_tags)} tags out of {len(tags)} from {path}'
+                f'found {len(processed_tags)} tags out of {len(general_tags)} from {path}'
             )
 
             plain_tags = ', '.join(processed_tags)
@@ -197,7 +208,7 @@ def on_interrogate(
 
             if batch_output_save_json:
                 output_path.with_suffix('.json').write_text(
-                    json.dumps([ratings, tags])
+                    json.dumps([ratings, general_tags])
                 )
 
         print('all done :)')
@@ -205,7 +216,7 @@ def on_interrogate(
     if unload_model_after_running:
         interrogator.unload()
 
-    return ['', None, None, '']
+    return ['', None, None, None, '']
 
 
 def on_ui_tabs():
@@ -419,9 +430,13 @@ def on_ui_tabs():
                     label='Rating confidents',
                     elem_id='rating-confidents'
                 )
-                tag_confidents = gr.Label(
-                    label='Tag confidents',
+                general_tag_confidents = gr.Label(
+                    label='General tag confidents',
                     elem_id='tag-confidents'
+                )
+                character_tag_confidents = gr.Label(
+                    label='Character tag confidents',
+                    elem_id='character-tag-confidents'
                 )
 
         # register events
@@ -443,6 +458,7 @@ def on_ui_tabs():
         )
 
         for func in [image.change, submit.click]:
+            # noinspection PyArgumentList
             func(
                 fn=wrap_gradio_gpu_call(on_interrogate),
                 inputs=[
@@ -474,7 +490,8 @@ def on_ui_tabs():
                 outputs=[
                     tags,
                     rating_confidents,
-                    tag_confidents,
+                    general_tag_confidents,
+                    character_tag_confidents,
 
                     # contains execution time, memory usage and other stuffs...
                     # generated from modules.ui.wrap_gradio_call

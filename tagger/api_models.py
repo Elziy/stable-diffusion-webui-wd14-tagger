@@ -54,6 +54,16 @@ class TaggerInterrogateResponse(BaseModel):
         description='The processed tags for the image.'
     )
 
+    general_tags: Dict[str, float] = Field(
+        title='General Tags',
+        description='The processed general tags for the image.'
+    )
+
+    character_tags: Dict[str, float] = Field(
+        title='Character Tags',
+        description='The processed character tags for the image.'
+    )
+
 
 class InterrogatorsResponse(BaseModel):
     models: List[str] = Field(
