@@ -490,8 +490,8 @@ def on_ui_tabs():
                 outputs=[
                     tags,
                     rating_confidents,
-                    general_tag_confidents,
                     character_tag_confidents,
+                    general_tag_confidents,
 
                     # contains execution time, memory usage and other stuffs...
                     # generated from modules.ui.wrap_gradio_call
